@@ -32,14 +32,14 @@ export const savePhotoToAlbum = async (userId: string, imageUrl: string, scene: 
   const { data, error } = await supabase
     .from('wedding_photos')
     .insert([
-      { 
-        user_id: userId, 
-        image_url: imageUrl, 
+      {
+        user_id: userId,
+        image_url: imageUrl,
         scene_name: scene
       }
     ])
     .select();
-    
+
   if (error) throw error;
   return data;
 };
@@ -51,7 +51,7 @@ export const getUserPhotos = async (userId: string): Promise<UserPhoto[]> => {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
-    
+
   if (error) throw error;
   return (data || []) as UserPhoto[];
 };
@@ -62,6 +62,33 @@ export const deleteUserPhoto = async (photoId: string) => {
     .from('wedding_photos')
     .delete()
     .eq('id', photoId);
-    
+
+  if (error) throw error;
+};
+
+export const getUserApiKey = async (userId: string): Promise<string | null> => {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('gemini_api_key')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // No rows found
+    console.error("API Key 로드 실패:", error);
+    return null;
+  }
+  return data?.gemini_api_key || null;
+};
+
+export const updateUserApiKey = async (userId: string, apiKey: string) => {
+  if (!supabase) throw new Error("Supabase 설정이 누락되었습니다.");
+
+  // upsert: insert if not exists, update if exists
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, gemini_api_key: apiKey });
+
   if (error) throw error;
 };

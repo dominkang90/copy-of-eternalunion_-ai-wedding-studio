@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Uploader from './components/Uploader';
+import ApiKeyModal from './components/ApiKeyModal';
 import { AppState, UserPhoto } from './types';
 import { generateWeddingPhoto, editWeddingPhoto, suggestWeddingPose, suggestWeddingRetouch } from './services/geminiService';
-import { supabase, signInWithGoogle, signOut, savePhotoToAlbum, getUserPhotos, deleteUserPhoto } from './services/supabaseService';
+import { supabase, signInWithGoogle, signOut, savePhotoToAlbum, getUserPhotos, deleteUserPhoto, getUserApiKey, updateUserApiKey } from './services/supabaseService';
 import { WEDDING_SCENES, POSE_TEMPLATES, FILTER_STYLES, OUTFIT_STYLES } from './constants';
 import { User } from '@supabase/supabase-js';
 
@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [editTab, setEditTab] = useState<'adjust' | 'face' | 'ai'>('adjust');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const isCancelledRef = useRef(false);
 
   const [state, setState] = useState<AppState>({
@@ -50,34 +51,19 @@ const App: React.FC = () => {
     zoom: 1,
     customRetouchPrompt: '',
     showEditModal: false,
+    userApiKey: undefined,
   });
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [hasApiKey, setHasApiKey] = useState(false);
 
   useEffect(() => {
-    const checkKey = async () => {
-      // @ts-ignore
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        // @ts-ignore
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-      } else {
-        setHasApiKey(true);
-      }
-    };
-    checkKey();
-
     if (supabase) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
-        if (session?.user) fetchUserPhotos(session.user.id);
+        handleUserLogin(session?.user ?? null);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) fetchUserPhotos(session.user.id);
-        else setUserPhotos([]);
+        handleUserLogin(session?.user ?? null);
       });
 
       return () => subscription.unsubscribe();
@@ -85,6 +71,34 @@ const App: React.FC = () => {
 
     if (window.innerWidth >= 1024) setIsSidebarOpen(true);
   }, []);
+
+  const handleUserLogin = async (loggedUser: User | null) => {
+    setUser(loggedUser);
+    if (loggedUser) {
+      fetchUserPhotos(loggedUser.id);
+      // Fetch API Key
+      try {
+        const key = await getUserApiKey(loggedUser.id);
+        if (key) {
+          updateState({ userApiKey: key });
+        } else {
+          setShowApiKeyModal(true);
+        }
+      } catch (e) {
+        console.error("Failed to fetch API Key", e);
+      }
+    } else {
+      setUserPhotos([]);
+      updateState({ userApiKey: undefined });
+    }
+  };
+
+  const onSaveApiKey = async (apiKey: string) => {
+    if (!user) return;
+    await updateUserApiKey(user.id, apiKey);
+    updateState({ userApiKey: apiKey });
+    setShowApiKeyModal(false);
+  };
 
   const fetchUserPhotos = async (userId: string) => {
     if (!supabase) return;
@@ -140,15 +154,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleOpenKeySelector = async () => {
-    // @ts-ignore
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-    }
-  };
-
   const updateState = (updates: Partial<AppState>) => {
     setState(prev => ({ ...prev, ...updates }));
     setHoveredImage(null);
@@ -172,6 +177,11 @@ const App: React.FC = () => {
   };
 
   const handleBatchGenerate = async () => {
+    if (!state.userApiKey) {
+      if (user) setShowApiKeyModal(true);
+      else setErrorMessage("로그인 후 이용 가능합니다.");
+      return;
+    }
     if (state.brideImages.length === 0 || state.groomImages.length === 0) {
       setErrorMessage("신랑/신부 사진을 업로드해주세요.");
       return;
@@ -209,7 +219,8 @@ const App: React.FC = () => {
           state.selectedOutfit,
           state.brideOutfitRefImage,
           state.groomOutfitRefImage,
-          firstResult
+          firstResult,
+          state.userApiKey // Pass Key
         );
 
         if (i === 0) firstResult = img;
@@ -221,13 +232,18 @@ const App: React.FC = () => {
         updateState({ resultImage: results[0], originalGeneratedImage: results[0] });
       }
     } catch (e: any) {
-      setErrorMessage("배치 생성 중 오류가 발생했습니다.");
+      setErrorMessage("배치 생성 중 오류가 발생했습니다: " + e.message);
     } finally {
       updateState({ isBatchGenerating: false });
     }
   };
 
   const handleGenerate = async () => {
+    if (!state.userApiKey) {
+      if (user) setShowApiKeyModal(true);
+      else setErrorMessage("로그인 후 이용 가능합니다.");
+      return;
+    }
     if (state.brideImages.length === 0 || state.groomImages.length === 0) {
       setErrorMessage("사진을 업로드해주세요.");
       return;
@@ -249,13 +265,15 @@ const App: React.FC = () => {
         state.poseRefImage,
         state.selectedOutfit,
         state.brideOutfitRefImage,
-        state.groomOutfitRefImage
+        state.groomOutfitRefImage,
+        null,
+        state.userApiKey // Pass Key
       );
 
       if (isCancelledRef.current) return;
       updateState({ resultImage: imageUrl, originalGeneratedImage: imageUrl });
 
-      const suggestions = await suggestWeddingRetouch(state.selectedScene);
+      const suggestions = await suggestWeddingRetouch(state.selectedScene, state.userApiKey);
       setRetouchSuggestions(suggestions);
     } catch (error: any) {
       setErrorMessage(error.message || "이미지 생성 오류");
@@ -265,10 +283,10 @@ const App: React.FC = () => {
   };
 
   const handleRetouch = async (instruction: string) => {
-    if (!state.resultImage) return;
+    if (!state.resultImage || !state.userApiKey) return;
     updateState({ isGenerating: true });
     try {
-      const img = await editWeddingPhoto(state.resultImage, instruction);
+      const img = await editWeddingPhoto(state.resultImage, instruction, state.userApiKey);
       // 팝업 내부에서 즉각 반영
       updateState({ resultImage: img });
     } catch (e) {
@@ -280,6 +298,8 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-naver-bg overflow-hidden font-sans">
+      <ApiKeyModal isOpen={showApiKeyModal} onSave={onSaveApiKey} />
+
       {/* 프로페셔널 편집 모달 (팝업 내 즉각 반영 버전) */}
       {state.showEditModal && state.resultImage && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-0 sm:p-4 lg:p-10 animate-in fade-in duration-200">
@@ -479,15 +499,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {!hasApiKey && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white p-8 rounded-naver-2xl shadow-naver-lg border border-naver-border text-center">
-            <h2 className="text-2xl font-bold text-naver-text mb-2">스튜디오 활성화</h2>
-            <button onClick={handleOpenKeySelector} className="w-full py-4 bg-brand-primary text-white rounded-naver-md font-bold shadow-naver-md transition-all">API 키 선택</button>
-          </div>
-        </div>
-      )}
-
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-[100] lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -501,7 +512,11 @@ const App: React.FC = () => {
           onApplyAIEdit={handleRetouch}
           onAddText={() => { }}
           onSuggestPose={async () => {
-            const p = await suggestWeddingPose(state.selectedScene);
+            if (!state.userApiKey) {
+              if (user) setShowApiKeyModal(true);
+              return;
+            }
+            const p = await suggestWeddingPose(state.selectedScene, state.userApiKey);
             updateState({ customPosePrompt: p });
           }}
           onBatchGenerate={handleBatchGenerate}

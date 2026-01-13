@@ -61,7 +61,7 @@ export interface AppState {
   isBatchGenerating: boolean;
   batchProgress: number;
   isHighQuality: boolean;
-  
+
   brightness: number;
   contrast: number;
   saturation: number;
@@ -69,9 +69,10 @@ export interface AppState {
   frameStyle: string;
   activeFilter: string;
   textOverlays: TextOverlay[];
-  
+
   activeTab: 'generation' | 'color' | 'album';
   zoom: number;
   customRetouchPrompt: string;
   showEditModal: boolean;
+  userApiKey?: string;
 }
