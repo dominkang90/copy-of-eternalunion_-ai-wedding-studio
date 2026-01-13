@@ -663,25 +663,30 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
+      <div className="fixed bottom-0 left-0 bg-red-900/90 text-white text-[10px] p-2 z-[9999] w-full break-all">
+        DEBUG:
+        SupabaseClient: {supabase ? 'Initialized' : 'NULL'} |
+        User: {user ? user.email : 'NULL'} |
+        API Key: {state.userApiKey ? 'Loaded' : 'Missing'} |
+        ENV_URL: {process.env.SUPABASE_URL ? 'Exists' : 'Missing'}
+      </div>
     </div>
-  );
-};
 
 const EditorSlider = ({ label, value, onChange, dark }: { label: string, value: number, onChange: (v: number) => void, dark?: boolean }) => (
-  <div className="space-y-3">
-    <div className={`flex justify-between text-[10px] font-bold uppercase tracking-tight ${dark ? 'text-white/40' : 'text-naver-secondary'}`}>
-      <span>{label}</span>
-      <span className="text-brand-primary">{value}%</span>
+    <div className="space-y-3">
+      <div className={`flex justify-between text-[10px] font-bold uppercase tracking-tight ${dark ? 'text-white/40' : 'text-naver-secondary'}`}>
+        <span>{label}</span>
+        <span className="text-brand-primary">{value}%</span>
+      </div>
+      <input
+        type="range"
+        min="50"
+        max="150"
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        className={`w-full h-1 rounded-naver-full appearance-none accent-brand-primary cursor-pointer ${dark ? 'bg-white/10' : 'bg-naver-border'}`}
+      />
     </div>
-    <input
-      type="range"
-      min="50"
-      max="150"
-      value={value}
-      onChange={(e) => onChange(parseInt(e.target.value))}
-      className={`w-full h-1 rounded-naver-full appearance-none accent-brand-primary cursor-pointer ${dark ? 'bg-white/10' : 'bg-naver-border'}`}
-    />
-  </div>
-);
+  );
 
-export default App;
+  export default App;
