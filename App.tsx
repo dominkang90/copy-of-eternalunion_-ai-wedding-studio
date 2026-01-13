@@ -538,7 +538,7 @@ const App: React.FC = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-3">
-                <div className="hidden sm:flex flex-col items-end mr-2">
+                <div className="flex flex-col items-end mr-2">
                   <span className="text-[11px] font-bold text-naver-text">{user.user_metadata.full_name || user.email}</span>
                   <div className="flex space-x-2 mt-0.5">
                     <button
