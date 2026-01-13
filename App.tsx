@@ -538,11 +538,33 @@ const App: React.FC = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-3">
-                <span className="hidden sm:inline text-[11px] font-bold text-naver-text">{user.user_metadata.full_name || user.email}</span>
-                <img src={user.user_metadata.avatar_url} alt="profile" className="w-8 h-8 rounded-full border border-naver-border cursor-pointer" onClick={() => signOut()} />
+                <div className="hidden sm:flex flex-col items-end mr-2">
+                  <span className="text-[11px] font-bold text-naver-text">{user.user_metadata.full_name || user.email}</span>
+                  <div className="flex space-x-2 mt-0.5">
+                    <button
+                      onClick={() => setShowApiKeyModal(true)}
+                      className={`text-[10px] font-bold ${state.userApiKey ? 'text-naver-quaternary hover:text-brand-primary' : 'text-red-500 animate-pulse'}`}
+                    >
+                      {state.userApiKey ? 'API Key 변경' : 'API Key 필요!'}
+                    </button>
+                    <span className="text-[10px] text-naver-border">|</span>
+                    <button onClick={() => signOut()} className="text-[10px] text-naver-secondary hover:text-red-500 font-bold transition-colors">
+                      로그아웃
+                    </button>
+                  </div>
+                </div>
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="profile"
+                  className="w-9 h-9 rounded-full border border-naver-border cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => setShowApiKeyModal(true)}
+                />
               </div>
             ) : (
-              <button onClick={() => signInWithGoogle()} className="px-4 py-1.5 border border-naver-border rounded-naver-full text-xs font-bold hover:bg-naver-bg transition-all">구글 로그인</button>
+              <button onClick={() => signInWithGoogle()} className="px-4 py-1.5 border border-naver-border rounded-naver-full text-xs font-bold hover:bg-naver-bg transition-all flex items-center space-x-2">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" /></svg>
+                <span>구글 로그인</span>
+              </button>
             )}
             <button
               onClick={handleGenerate}
