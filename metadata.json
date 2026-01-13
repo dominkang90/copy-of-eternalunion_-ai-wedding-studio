@@ -1,0 +1,7 @@
+{
+  "name": "Copy of EternalUnion: AI Wedding Studio",
+  "description": "A high-end professional wedding photo generator and editor that creates stunning, lifelike wedding portraits using AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
