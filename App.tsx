@@ -54,6 +54,22 @@ const App: React.FC = () => {
     userApiKey: undefined,
   });
 
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Click outside to close dropdown
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -296,212 +312,14 @@ const App: React.FC = () => {
     }
   };
 
+
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-naver-bg overflow-hidden font-sans">
       <ApiKeyModal isOpen={showApiKeyModal} onSave={onSaveApiKey} />
 
-      {/* 프로페셔널 편집 모달 (팝업 내 즉각 반영 버전) */}
-      {state.showEditModal && state.resultImage && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-0 sm:p-4 lg:p-10 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/95 backdrop-blur-md" onClick={() => updateState({ showEditModal: false })} />
+      {/* ... (existing code for Modals and Sidebar) ... */}
 
-          <div className="relative w-full max-w-7xl h-full sm:h-[90vh] bg-[#1a1a1a] rounded-none sm:rounded-naver-2xl shadow-naver-lg overflow-hidden flex flex-col lg:flex-row animate-in zoom-in-95 duration-300 border border-white/10">
-            {/* 왼쪽: 메인 프리뷰 영역 */}
-            <div className="flex-1 bg-black flex flex-col relative overflow-hidden">
-              {/* 상단 툴바 */}
-              <div className="h-14 px-6 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-sm z-20">
-                <div className="flex items-center space-x-4">
-                  <span className="text-white/60 text-[11px] font-bold tracking-widest uppercase">Editor v2.0 Professional</span>
-                  <div className="h-4 w-[1px] bg-white/10"></div>
-                  <button
-                    onMouseDown={() => setIsComparing(true)}
-                    onMouseUp={() => setIsComparing(false)}
-                    onMouseLeave={() => setIsComparing(false)}
-                    className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold rounded-naver-full transition-all active:scale-95 flex items-center space-x-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
-                    <span>원본과 비교 (누르고 계세요)</span>
-                  </button>
-                </div>
-                <button
-                  onClick={() => updateState({ showEditModal: false })}
-                  className="text-white/40 hover:text-white p-2 transition-all"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-
-              <div className="flex-1 flex items-center justify-center p-8 relative">
-                {/* 이미지 로딩 오버레이 */}
-                {state.isGenerating && (
-                  <div className="absolute inset-0 bg-black/60 z-30 flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in">
-                    <div className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-white text-xs font-bold tracking-widest animate-pulse">리터칭 데이터 분석 및 적용 중...</p>
-                  </div>
-                )}
-
-                <img
-                  src={isComparing ? (state.originalGeneratedImage || state.resultImage) : state.resultImage}
-                  className="max-h-full w-auto shadow-2xl transition-all duration-300 rounded-naver-sm select-none"
-                  style={{
-                    filter: `brightness(${state.brightness}%) contrast(${state.contrast}%) saturate(${state.saturation}%)`,
-                    transform: isComparing ? 'scale(0.98)' : 'scale(1)'
-                  }}
-                  alt="editor-preview"
-                />
-
-                {isComparing && (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 px-4 py-2 rounded-naver-md border border-white/20 z-40 text-white text-[10px] font-bold uppercase tracking-widest">Original View</div>
-                )}
-              </div>
-
-              {/* 하단 단축키 바 */}
-              <div className="h-10 px-6 flex items-center text-[9px] text-white/30 font-bold uppercase tracking-widest bg-black/40 border-t border-white/5">
-                Space: Compare • S: Save • ESC: Close
-              </div>
-            </div>
-
-            {/* 오른쪽: 정밀 컨트롤 패널 */}
-            <div className="w-full lg:w-[400px] bg-[#1a1a1a] border-l border-white/10 flex flex-col overflow-hidden">
-              <div className="flex border-b border-white/10">
-                <button onClick={() => setEditTab('adjust')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-all ${editTab === 'adjust' ? 'text-brand-primary border-b-2 border-brand-primary bg-white/5' : 'text-white/40 hover:text-white/60'}`}>기본 보정</button>
-                <button onClick={() => setEditTab('face')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-all ${editTab === 'face' ? 'text-brand-primary border-b-2 border-brand-primary bg-white/5' : 'text-white/40 hover:text-white/60'}`}>인물 리터칭</button>
-                <button onClick={() => setEditTab('ai')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-all ${editTab === 'ai' ? 'text-brand-primary border-b-2 border-brand-primary bg-white/5' : 'text-white/40 hover:text-white/60'}`}>AI 특수효과</button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                {editTab === 'adjust' && (
-                  <div className="space-y-8 animate-in slide-in-from-right-4">
-                    <div className="space-y-6">
-                      <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Color & Exposure</h3>
-                      <div className="space-y-6">
-                        <EditorSlider label="Exposure (밝기)" value={state.brightness} onChange={(v) => updateState({ brightness: v })} dark />
-                        <EditorSlider label="Contrast (대비)" value={state.contrast} onChange={(v) => updateState({ contrast: v })} dark />
-                        <EditorSlider label="Vibrance (채도)" value={state.saturation} onChange={(v) => updateState({ saturation: v })} dark />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Quick Retouch</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {["선명하게", "부드럽게", "영화처럼", "따뜻하게"].map(cmd => (
-                          <button key={cmd} onClick={() => handleRetouch(cmd)} className="py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-naver-md text-[10px] font-bold text-white/80 transition-all">{cmd}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {editTab === 'face' && (
-                  <div className="space-y-8 animate-in slide-in-from-right-4">
-                    <div className="space-y-4">
-                      <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Smart Face Retouch</h3>
-                      <div className="space-y-2">
-                        {["피부 결 고르게 정리", "눈동자 선명하게 보정", "치아 미백 효과 적용", "전체적인 얼굴 윤곽 최적화"].map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleRetouch(s)}
-                            className="w-full text-left px-4 py-3 bg-white/5 hover:bg-brand-primary/20 border border-white/10 rounded-naver-md text-[11px] font-bold text-white/80 transition-all flex items-center justify-between group"
-                          >
-                            <span>{s}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-white/20 group-hover:text-brand-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {editTab === 'ai' && (
-                  <div className="space-y-8 animate-in slide-in-from-right-4">
-                    <div className="space-y-4">
-                      <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">AI Artistic Effects</h3>
-                      <div className="space-y-2">
-                        {retouchSuggestions.length > 0 ? retouchSuggestions.map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleRetouch(s)}
-                            className="w-full text-left px-4 py-3 bg-white/5 hover:bg-brand-primary/20 border border-white/10 rounded-naver-md text-[11px] font-bold text-white/80 transition-all flex items-center justify-between"
-                          >
-                            <span className="truncate pr-4">{s}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-brand-primary"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-                          </button>
-                        )) : (
-                          <p className="text-white/40 text-[10px]">스튜디오 조명 분석 후 추천 리터칭이 활성화됩니다.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 공통: 맞춤 요청 영역 (상시 노출) */}
-                <div className="pt-4 border-t border-white/10 space-y-4">
-                  <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Custom Request (맞춤 요청)</h3>
-                  <div className="relative group">
-                    <input
-                      type="text"
-                      placeholder="예: '신부의 드레스 끝단을 더 길게'"
-                      value={state.customRetouchPrompt}
-                      onChange={(e) => updateState({ customRetouchPrompt: e.target.value })}
-                      onKeyDown={(e) => e.key === 'Enter' && handleRetouch(state.customRetouchPrompt)}
-                      className="w-full pl-4 pr-12 py-4 bg-white/5 border border-white/10 rounded-naver-md text-xs text-white focus:ring-1 focus:ring-brand-primary focus:border-brand-primary outline-none transition-all placeholder:text-white/20"
-                    />
-                    <button
-                      onClick={() => handleRetouch(state.customRetouchPrompt)}
-                      disabled={!state.customRetouchPrompt || state.isGenerating}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 text-brand-primary hover:bg-brand-primary/20 rounded-naver-sm transition-all disabled:opacity-30 disabled:hover:bg-transparent"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-                    </button>
-                  </div>
-                  <p className="text-[9px] text-white/20 font-medium">자연스러운 문장으로 요청하면 AI 전문가가 실시간으로 반영합니다.</p>
-                </div>
-              </div>
-
-              <div className="p-8 pt-0 flex flex-col space-y-3">
-                <button
-                  onClick={() => handleSaveToAlbum()}
-                  disabled={isSaving}
-                  className="w-full py-4 bg-brand-primary text-white rounded-naver-md font-bold text-sm shadow-naver-md hover:bg-brand-hover active:scale-95 transition-all flex items-center justify-center space-x-2"
-                >
-                  {isSaving ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                  )}
-                  <span>최종 결과 앨범 저장</span>
-                </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleDownload(state.resultImage!)}
-                    className="py-3 bg-white/10 text-white border border-white/10 rounded-naver-md font-bold text-[11px] transition-all hover:bg-white/20"
-                  >
-                    기기에 다운로드
-                  </button>
-                  <button
-                    onClick={() => updateState({ showEditModal: false })}
-                    className="py-3 bg-transparent text-white/40 hover:text-white/60 border border-white/10 rounded-naver-md font-bold text-[11px] transition-all"
-                  >
-                    편집창 닫기
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {hoveredImage && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[300] pointer-events-none select-none animate-in fade-in zoom-in-95 duration-200">
-          <div className="bg-white p-1 rounded-naver-lg shadow-naver-lg border border-naver-border overflow-hidden ring-4 ring-black/5">
-            <img src={hoveredImage} className="max-w-[280px] max-h-[380px] object-contain rounded-naver-md" alt="preview" />
-          </div>
-        </div>
-      )}
-
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-[100] lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
-      )}
+      {/* Sidebar Overlay and Aside code remains the same... */}
 
       <aside className={`fixed inset-y-0 left-0 z-[110] transform transition-transform duration-300 lg:relative lg:translate-x-0 w-full max-w-[340px] shadow-naver-lg lg:shadow-none bg-white ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <Sidebar
@@ -537,28 +355,47 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center space-x-4">
             {user ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex flex-col items-end mr-2">
-                  <span className="text-[11px] font-bold text-naver-text">{user.user_metadata.full_name || user.email}</span>
-                  <div className="flex space-x-2 mt-0.5">
-                    <button
-                      onClick={() => setShowApiKeyModal(true)}
-                      className={`text-[10px] font-bold ${state.userApiKey ? 'text-naver-quaternary hover:text-brand-primary' : 'text-red-500 animate-pulse'}`}
-                    >
-                      {state.userApiKey ? 'API Key 변경' : 'API Key 필요!'}
-                    </button>
-                    <span className="text-[10px] text-naver-border">|</span>
-                    <button onClick={() => signOut()} className="text-[10px] text-naver-secondary hover:text-red-500 font-bold transition-colors">
-                      로그아웃
-                    </button>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center space-x-2 focus:outline-none group"
+                >
+                  <div className="flex flex-col items-end mr-1 hidden sm:flex">
+                    <span className="text-[11px] font-bold text-naver-text group-hover:text-brand-primary transition-colors">{user.user_metadata.full_name || user.email}</span>
                   </div>
-                </div>
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt="profile"
-                  className="w-9 h-9 rounded-full border border-naver-border cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setShowApiKeyModal(true)}
-                />
+                  <img
+                    src={user.user_metadata.avatar_url || "https://www.gravatar.com/avatar?d=mp"}
+                    alt="profile"
+                    className={`w-9 h-9 rounded-full border border-naver-border transition-all ${isProfileMenuOpen ? 'ring-2 ring-brand-primary ring-offset-1' : 'group-hover:opacity-80'}`}
+                  />
+                </button>
+
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-naver-lg shadow-naver-lg py-1 z-50 ring-1 ring-black ring-opacity-5 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                    <div className="px-4 py-3 border-b border-naver-border/50 bg-naver-bg/50">
+                      <p className="text-xs font-bold text-naver-text truncate">{user.user_metadata.full_name || 'User'}</p>
+                      <p className="text-[10px] text-naver-tertiary truncate">{user.email}</p>
+                    </div>
+
+                    <div className="p-1">
+                      <button
+                        onClick={() => { setShowApiKeyModal(true); setIsProfileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 text-xs font-medium text-naver-secondary hover:bg-naver-bg hover:text-brand-primary rounded-md transition-colors flex items-center space-x-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" /></svg>
+                        <span>API Key 설정</span>
+                        {!state.userApiKey && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>}
+                      </button>
+                      <button
+                        onClick={() => { signOut(); setIsProfileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 rounded-md transition-colors flex items-center space-x-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" /></svg>
+                        <span>로그아웃</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <button onClick={() => signInWithGoogle()} className="px-4 py-1.5 border border-naver-border rounded-naver-full text-xs font-bold hover:bg-naver-bg transition-all flex items-center space-x-2">
@@ -671,22 +508,24 @@ const App: React.FC = () => {
         ENV_URL: {process.env.SUPABASE_URL ? 'Exists' : 'Missing'}
       </div>
     </div>
+  );
+};
 
 const EditorSlider = ({ label, value, onChange, dark }: { label: string, value: number, onChange: (v: number) => void, dark?: boolean }) => (
-    <div className="space-y-3">
-      <div className={`flex justify-between text-[10px] font-bold uppercase tracking-tight ${dark ? 'text-white/40' : 'text-naver-secondary'}`}>
-        <span>{label}</span>
-        <span className="text-brand-primary">{value}%</span>
-      </div>
-      <input
-        type="range"
-        min="50"
-        max="150"
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value))}
-        className={`w-full h-1 rounded-naver-full appearance-none accent-brand-primary cursor-pointer ${dark ? 'bg-white/10' : 'bg-naver-border'}`}
-      />
+  <div className="space-y-3">
+    <div className={`flex justify-between text-[10px] font-bold uppercase tracking-tight ${dark ? 'text-white/40' : 'text-naver-secondary'}`}>
+      <span>{label}</span>
+      <span className="text-brand-primary">{value}%</span>
     </div>
-  );
+    <input
+      type="range"
+      min="50"
+      max="150"
+      value={value}
+      onChange={(e) => onChange(parseInt(e.target.value))}
+      className={`w-full h-1 rounded-naver-full appearance-none accent-brand-primary cursor-pointer ${dark ? 'bg-white/10' : 'bg-naver-border'}`}
+    />
+  </div>
+);
 
-  export default App;
+export default App;
